@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Chekin Guest App Demo</title>
+<link rel="icon" type="image/svg+xml" href="chekin-icon.svg"><link rel="icon" type="image/png" sizes="32x32" href="chekin-icon.png">
+<!-- Sales demo for the Dubai expo. Guided walkthrough of four use cases over the guest app replica (app/) and Upselling v3 (upsell/).
+     Works offline: start it with the launcher in this folder (it serves the folder on http://localhost:7900). -->
+<style>
+@font-face{font-family:Poppins;font-weight:400;src:url(app/assets/fonts/Poppins/poppins-v22-latin-regular.woff2) format('woff2')}
+@font-face{font-family:Poppins;font-weight:500;src:url(app/assets/fonts/Poppins/poppins-v22-latin-500.woff2) format('woff2')}
+@font-face{font-family:Poppins;font-weight:600;src:url(app/assets/fonts/Poppins/poppins-v22-latin-600.woff2) format('woff2')}
+@font-face{font-family:Poppins;font-weight:700;src:url(app/assets/fonts/Poppins/poppins-v22-latin-700.woff2) format('woff2')}
+:root{--ink:#161643;--sub:#5a6695;--mute:#8a8ca6;--blue:#385bf8;--soft:#f1f3fb;--soft2:#e9edff;--card:#fff;--bg:linear-gradient(180deg,#e9ecf9,#dde1f3)}
+*{box-sizing:border-box}html,body{margin:0;height:100%}
+body{display:grid;grid-template-columns:minmax(0,1fr) var(--nw,340px);grid-template-rows:auto minmax(0,1fr);background:var(--bg);color:var(--ink);font:400 14px/1.45 Poppins,system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow:hidden}
+body.nonotes{--nw:0px}body.nonotes #notes{display:none}
+header{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:10px 14px;background:#fff;box-shadow:0 4px 14px rgba(22,22,67,.06);z-index:3}
+.brand{display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px;white-space:nowrap}
+.brand img{display:block;width:28px;height:28px;border-radius:8px}
+.seg{display:flex;flex-wrap:wrap;gap:2px;padding:3px;border-radius:12px;background:var(--soft)}
+.seg button{height:32px;padding:0 12px;border:0;border-radius:9px;background:none;color:var(--sub);font:600 12.5px Poppins,system-ui,sans-serif;cursor:pointer;white-space:nowrap}
+.seg button.on{background:var(--ink);color:#fff}
+.seg button b{display:inline-grid;place-items:center;width:18px;height:18px;margin-right:6px;border-radius:99px;background:var(--soft2);color:var(--blue);font-size:10.5px}
+.seg button.on b{background:var(--blue);color:#fff}
+.sp{flex:1}
+.ctl{display:flex;align-items:center;gap:6px}
+.btn,select{height:34px;padding:0 12px;border:0;border-radius:10px;background:var(--soft);color:var(--ink);font:600 12.5px Poppins,system-ui,sans-serif;cursor:pointer;white-space:nowrap}
+.btn:hover,select:hover{background:var(--soft2)}
+.btn.pri{background:var(--blue);color:#fff}.btn.pri:hover{background:#2c4be0}
+.btn.on{background:var(--ink);color:#fff}
+button:focus-visible,select:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+main{position:relative;min-width:0;min-height:0}
+main iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:transparent}
+#notes{margin:12px 12px 12px 0;padding:16px 16px 20px;border-radius:16px;background:#fff;box-shadow:0 8px 24px rgba(22,22,67,.12);overflow:auto}
+#notes .ft{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
+#notes h2{margin:2px 0 4px;font-size:18px;font-weight:700;line-height:1.25}
+#notes .pitch{margin:0 0 14px;color:var(--sub);font-size:13px}
+#notes ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+#notes li button{display:flex;gap:10px;width:100%;padding:10px;border:0;border-radius:12px;background:var(--soft);color:var(--ink);text-align:left;font:inherit;cursor:pointer}
+#notes li button:hover{background:var(--soft2)}
+#notes li i{flex:none;display:grid;place-items:center;width:22px;height:22px;border-radius:99px;background:#fff;color:var(--blue);font-style:normal;font-size:11px;font-weight:700}
+#notes li b{display:block;font-size:13px;font-weight:600;line-height:1.3}
+#notes li small{display:none;margin-top:6px;font-size:12.5px;line-height:1.45;color:var(--sub)}
+#notes li small em{display:block;margin-top:6px;font-style:normal;color:var(--blue);font-weight:500}
+#notes li.on button{background:var(--ink);color:#fff}
+#notes li.on i{background:var(--blue);color:#fff}
+#notes li.on small{display:block;color:#d7dbf5}
+#notes li.on small em{color:#9fb2ff}
+#notes .keys{margin-top:16px;padding:10px 12px;border-radius:12px;background:var(--soft);font-size:11.5px;color:var(--sub)}
+#notes .keys kbd{display:inline-block;min-width:20px;padding:0 5px;border-radius:6px;background:#fff;font:600 11px Poppins,system-ui,sans-serif;text-align:center;color:var(--ink)}
+/* clean mode: only the app */
+body.clean{grid-template-columns:1fr;grid-template-rows:1fr}
+body.clean header,body.clean #notes{display:none}
+#exit{display:none;position:fixed;right:12px;bottom:12px;z-index:9;height:34px;padding:0 14px;border:0;border-radius:99px;background:rgba(22,22,67,.78);color:#fff;font:600 12px Poppins,system-ui,sans-serif;cursor:pointer;opacity:.25;transition:opacity .2s}
+#exit:hover{opacity:1}
+body.clean #exit{display:block}
+#busy{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;opacity:0;transition:opacity .2s;color:var(--sub);font-weight:600}
+#busy.on{opacity:1}
+@media (max-width:1100px){body{grid-template-columns:1fr}#notes{position:fixed;right:12px;top:var(--hh,120px);bottom:12px;width:min(340px,calc(100vw - 24px));z-index:4;margin:0}}
+@media (max-width:640px){header{padding:8px 16px}.brand span{display:none}}
+</style></head><body class="nonotes">
+<header id="hd">
+  <div class="brand"><img src="chekin-icon.png" alt="" width="28" height="28"><span>Chekin · Guest app demo</span></div>
+  <div class="seg" id="flows" role="group" aria-label="Use case"></div>
+  <span class="sp"></span>
+  <div class="ctl">
+    <button class="btn" id="prev" type="button" title="Previous (←)">← Back</button>
+    <button class="btn pri" id="next" type="button" title="Next (→)">Next →</button>
+  </div>
+  <div class="seg" id="view" role="group" aria-label="Device"></div>
+  <select id="model" aria-label="Device model"></select>
+  <div class="ctl">
+    <button class="btn" id="notesb" type="button" aria-pressed="false" title="Talking points (N)">Notes</button>
+    <button class="btn" id="cleanb" type="button" title="Full screen, app only (F)">Full screen</button>
+    <button class="btn" id="resetb" type="button" title="Start this screen again (R)">Restart</button>
+  </div>
+</header>
+<main><iframe id="fr" title="Guest app"></iframe><div id="busy">Loading…</div></main>
+<aside id="notes" aria-label="Talking points"></aside>
+<button id="exit" type="button">Exit full screen (F)</button>
+<script>
+(function(){
+'use strict';
+/* ---------- the four use cases ----------
+   each step: [site, screen id, extra query for the screen, title, what it shows, what to say] */
+var UPS = 'd=v644.v2.hc32k2.p3.t2.b3b.w3.f6';
+var FLOWS = [
+  { k: 'checkin', t: 'Online check-in', pitch: 'From the property link or the reservation link to a registered guest, with the ID verified, before arrival.', steps: [
+    ['plink', 'property-link', '', 'One link for every booking', 'The property link: one link per property (website, QR, email). The guest finds the booking with name + arrival date.', 'Tap «Find my booking» to show the booking found and how the guest lands in the app.'],
+    ['plink', 'reservation-link', '', 'Or a link per booking', 'The reservation link: each booking gets its own link (email, WhatsApp, the booking channel). The booking is already known, so the guest goes straight into their stay.', 'No search needed: watch the booking open inside the guest app.'],
+    ['plink', 'one-click', '', 'One-click check-in', 'Returning guests sign in with Google or Apple and reuse the guests they saved last time.', 'Repeat travellers check in in seconds.'],
+    ['app', 'home', '', 'Everything before arrival', 'The guest app home: stay dates, what is left to do and the keys that unlock when it is done.', 'The guest always knows the next step, so the host doesn’t have to chase them.'],
+    ['app', 'hub-after-1', '', 'The whole group', 'Register one guest or everyone in the same session, or share a link so each guest fills in their own details. Minors get a shorter form.', ''],
+    ['app', 'g2-iv', '', 'ID scan + liveness check', 'The guest photographs both sides of the document and does a short liveness check. The form is filled in from the document.', 'Tap Continue to walk through the camera steps.'],
+    ['app', 'g2-registered', '', 'Registered, and the next sale', 'Right after registering: next guest, pending payments and an early check-in offer.', 'The moment the guest finishes is the best moment to sell.']
+  ]},
+  { k: 'payments', t: 'Payments & deposit', pitch: 'Tourist tax, booking payment and security deposit in one checkout, by card.', steps: [
+    ['app', 'cart', '', 'One checkout', 'Everything the guest owes in one place: booking payment, tourist tax and security deposit, with 3D Secure card payments by Stripe.', 'Tap Pay to show the card form and the bank confirmation. Test card: 4242 4242 4242 4242, any future date and CVC.'],
+    ['app', 'cart-exemptions', '', 'Tourist tax with exemptions', 'Guests mark who is exempt and the tax is recalculated before paying.', ''],
+    ['app', 'pay-1-protection', '', 'Deposit or protection', 'The guest chooses a security deposit (an amount held on the card, not charged) or damage protection instead.', 'A hold is not a charge: it is shown apart from what the guest pays.'],
+    ['app', 'order-history', '', 'Every receipt', 'Receipts for what was paid and, apart, what was only held on the card.', '']
+  ]},
+  { k: 'upselling', t: 'Upselling', pitch: 'Extras the host sells inside the guest app: early check-in, late check-out and add-ons.', steps: [
+    ['ups', 'ux-list', 'f=full', 'Extras for the stay', 'Everything the host offers, with the featured deal first. Simple extras are added in one tap.', ''],
+    ['ups', 'ux-instant', 'f=full&o=early', 'Early check-in', 'Priced by arrival time. This one needs the host’s approval: the amount is only charged if the host says yes.', ''],
+    ['ups', 'ux-instant', 'f=full&o=late', 'Late check-out', 'Priced by departure time and confirmed automatically.', ''],
+    ['ups', 'ux-instant', 'f=full&o=transfer', 'Add-ons', 'Transfers, groceries, parking, pets… priced per unit, person, day or group.', ''],
+    ['ups', 'ux-mine', 'f=mine', 'My extras', 'Every request with its status and what is paid or only held.', '']
+  ]},
+  { k: 'keys', t: 'Keys & guidebook', pitch: 'Virtual keys that unlock when check-in is done, and the host’s digital guidebook.', steps: [
+    ['app', 'keys', '', 'Keys unlock with check-in', 'Until check-in is done, the keys screen shows only the steps left.', 'Finishing check-in is what gets the guest in, so they finish it.', { noTab: 1 }],
+    ['app', 'keys', 'keys=open&st=done&kt=link', 'Open the door from the phone', 'Once check-in is done the keys are ready: every door (entrance, apartment…) opens from the guest app, with how to get in and help in the same place.', 'Slide a door to open it.', { noTab: 1 }],
+    ['app', 'guidebook', '', 'Digital guidebook', 'Wi-Fi, access, house rules and local tips from the host, ready before arrival.', ''],
+    ['app', 'guidebook-editor', '', 'For the host: the guidebook editor', 'The host builds the guidebook from blocks, or imports a PDF or an existing page.', '']
+  ]}
+];
+var SITES = { app: 'app/', plink: 'app/property-link/', ups: 'upsell/' };
+/* devices (CSS px, portrait) — same ids as the mockup pages */
+var DEV = {
+  phone: [['i15', 'iPhone 15'], ['i15pm', 'iPhone 15 Pro Max'], ['se', 'iPhone SE'], ['px8', 'Pixel 8'], ['s23', 'Galaxy S23']],
+  tab: [['ip', 'iPad'], ['ipm', 'iPad mini'], ['ipp11', 'iPad Pro 11"'], ['ipp13', 'iPad Pro 12.9"']],
+  desk: [['mbp14', 'MacBook Pro 14"'], ['mba13', 'MacBook Air 13"'], ['lap', 'Small laptop'], ['mbp16', 'MacBook Pro 16"'], ['fhd', 'Full HD screen'], ['qhd', 'QHD screen']]
+};
+var VIEWS = [['split', 'Phone + desktop'], ['phone', 'Phone'], ['tab', 'Tablet'], ['desk', 'Desktop'], ['raw', 'No mockup']];
+
+/* ---------- state (kept per laptop, so the seller’s set-up survives a reload) ---------- */
+function get(k, d){ try { var v = localStorage.getItem('demo-' + k); return v === null ? d : v; } catch (e) { return d; } }
+function put(k, v){ try { localStorage.setItem('demo-' + k, v); } catch (e) {} }
+var f = Math.min(FLOWS.length - 1, +get('f', 0) || 0), s = +get('s', 0) || 0;
+var view = get('view', 'split'), model = {}; try { model = JSON.parse(get('model', '{}')) || {}; } catch (e) {}
+if (!VIEWS.some(function(v){ return v[0] === view; })) view = 'split';
+s = Math.max(0, Math.min(FLOWS[f].steps.length - 1, s));
+
+/* demo settings for the replica: deposit + taxes + booking payment, no Controls panel */
+try {
+  localStorage.setItem('replica-gc-payments', '["deposit","taxes","reservation"]');
+  localStorage.setItem('replica-flows-panel', '0');
+} catch (e) {}
+
+var fr = document.getElementById('fr'), busy = document.getElementById('busy');
+function step(){ return FLOWS[f].steps[s]; }
+function url(st){
+  var base = SITES[st[0]], q = st[2] || '';
+  if (st[0] === 'ups') q = (q ? q + '&' : '') + UPS;
+  if (st[1] === 'guidebook-editor') return base + 'screens/guidebook-editor.html';
+  var qs = q ? '&q=' + encodeURIComponent(q) : '';
+  if (view === 'split') return base + 'split.html?s=' + st[1] + qs + '&fx=1';
+  if (view === 'raw') return base + 'screens/' + st[1] + '.d.html' + (q ? '?' + q : '');   /* the desktop app straight in the browser, no device frame */
+  var v = view === 'tab' && st[6] && st[6].noTab ? 'phone' : view;   /* the keys screen is designed for phone and desktop only */
+  var d = model[v] || DEV[v][0][0];
+  return base + 'phone.html?s=' + st[1] + qs + '&dev=' + d + '&demo=1';
+}
+function seg(id, items, on, cb){
+  var el = document.getElementById(id);
+  el.innerHTML = items.map(function(v){ return '<button type="button" data-k="' + v[0] + '" class="' + (String(v[0]) === String(on) ? 'on' : '') + '" aria-pressed="' + (String(v[0]) === String(on)) + '">' + v[1] + '</button>'; }).join('');
+  el.onclick = function(e){ var b = e.target.closest('button'); if (b) cb(b.getAttribute('data-k')); };
+}
+function esc(t){ return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+function paint(){
+  seg('flows', FLOWS.map(function(x, i){ return [i, '<b>' + (i + 1) + '</b>' + x.t]; }), f, function(k){ go(+k, 0); });
+  seg('view', VIEWS, view, function(k){ view = k; put('view', k); paint(); load(); });
+  var m = document.getElementById('model');
+  m.style.display = view === 'split' || view === 'raw' ? 'none' : '';
+  if (view !== 'split' && view !== 'raw') {
+    m.innerHTML = DEV[view].map(function(d){ return '<option value="' + d[0] + '">' + d[1] + '</option>'; }).join('');
+    m.value = model[view] || DEV[view][0][0];
+  }
+  var F = FLOWS[f];
+  document.getElementById('notes').innerHTML = '<div class="ft">Use case ' + (f + 1) + ' of ' + FLOWS.length + '</div><h2>' + esc(F.t) + '</h2><p class="pitch">' + esc(F.pitch) + '</p><ol>'
+    + F.steps.map(function(st, i){ return '<li class="' + (i === s ? 'on' : '') + '"><button type="button" data-i="' + i + '"><i>' + (i + 1) + '</i><span><b>' + esc(st[3]) + '</b><small>' + esc(st[4]) + (st[5] ? '<em>' + esc(st[5]) + '</em>' : '') + '</small></span></button></li>'; }).join('')
+    + '</ol><div class="keys"><kbd>←</kbd> <kbd>→</kbd> back / next (a presentation clicker works too) · <kbd>1</kbd>–<kbd>4</kbd> use case · <kbd>F</kbd> full screen · <kbd>N</kbd> notes · <kbd>R</kbd> restart screen</div>';
+  document.getElementById('prev').disabled = false;
+  document.title = 'Chekin Guest App Demo · ' + F.t + ' · ' + step()[3];
+}
+function load(){
+  busy.classList.add('on');
+  fr.src = url(step());
+}
+function go(nf, ns){ f = nf; s = ns; put('f', f); put('s', s); paint(); load(); }
+function next(){ if (s < FLOWS[f].steps.length - 1) go(f, s + 1); else go((f + 1) % FLOWS.length, 0); }
+function prev(){ if (s > 0) go(f, s - 1); else { var p = (f - 1 + FLOWS.length) % FLOWS.length; go(p, FLOWS[p].steps.length - 1); } }
+
+document.getElementById('next').onclick = next;
+document.getElementById('prev').onclick = prev;
+document.getElementById('model').onchange = function(){ model[view] = this.value; put('model', JSON.stringify(model)); load(); };
+document.getElementById('notes').addEventListener('click', function(e){ var b = e.target.closest('[data-i]'); if (b) go(f, +b.getAttribute('data-i')); });
+var nb = document.getElementById('notesb');
+function notes(on){ document.body.classList.toggle('nonotes', !on); nb.classList.toggle('on', on); nb.setAttribute('aria-pressed', String(on)); put('notes', on ? '1' : '0'); }
+nb.onclick = function(){ notes(document.body.classList.contains('nonotes')); };
+notes(get('notes', '1') === '1');
+function clean(on){
+  document.body.classList.toggle('clean', on);
+  try { if (on && !document.fullscreenElement) document.documentElement.requestFullscreen(); if (!on && document.fullscreenElement) document.exitFullscreen(); } catch (e) {}
+}
+document.getElementById('cleanb').onclick = function(){ clean(true); };
+document.getElementById('exit').onclick = function(){ clean(false); };
+document.addEventListener('fullscreenchange', function(){ if (!document.fullscreenElement) document.body.classList.remove('clean'); });
+document.getElementById('resetb').onclick = load;
+
+/* keys work even when the focus is inside the app (clickers send ← → / PageUp PageDown) */
+function onKey(e){
+  var t = e.target, tag = t && t.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) return;
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  var k = e.key;
+  if (k === 'ArrowRight' || k === 'PageDown') { e.preventDefault(); next(); }
+  else if (k === 'ArrowLeft' || k === 'PageUp') { e.preventDefault(); prev(); }
+  else if (/^[1-4]$/.test(k)) go(+k - 1, 0);
+  else if (k === 'f' || k === 'F') clean(!document.body.classList.contains('clean'));
+  else if (k === 'n' || k === 'N') nb.click();
+  else if (k === 'r' || k === 'R') load();
+  else if (k === 'Escape' && document.body.classList.contains('clean')) clean(false);
+}
+document.addEventListener('keydown', onKey);
+/* hide the mockup pages’ own bars and listen for keys in every frame */
+var HIDE = '.bar,.rp-dock,#rep-panel,#rep-panel-set,.ptg{display:none!important}html,body{padding-right:0!important}';
+function hook(win, depth){
+  if (!win || depth > 4) return;
+  try {
+    var doc = win.document;
+    if (!doc || doc.__demoHooked) return;
+    doc.__demoHooked = true;
+    if (depth === 1) { var st = doc.createElement('style'); st.textContent = HIDE; (doc.head || doc.documentElement).appendChild(st); setTimeout(function(){ try { win.dispatchEvent(new win.Event('resize')); } catch (e) {} }, 30); }
+    doc.addEventListener('keydown', onKey);
+    [].forEach.call(doc.querySelectorAll('iframe'), function(x){
+      x.addEventListener('load', function(){ hook(x.contentWindow, depth + 1); });
+      hook(x.contentWindow, depth + 1);
+    });
+  } catch (e) {}
+}
+fr.addEventListener('load', function(){ busy.classList.remove('on'); hook(fr.contentWindow, 1); setTimeout(function(){ hook(fr.contentWindow, 1); }, 800); });
+function hh(){ document.documentElement.style.setProperty('--hh', (document.getElementById('hd').offsetHeight + 8) + 'px'); }
+window.addEventListener('resize', hh);
+paint(); hh(); load();
+})();
+</script>
+</body></html>

@@ -1,13 +1,10 @@
-# Chekin guest app · sales demo
-
-A guided, clickable demo of the Chekin guest app, built for the sales team. Four use cases: online check-in, payments and deposit, upselling, and keys and guidebook.
+# Chekin guest app · prototypes and sales demo
 
 Live: https://dclemares.github.io/guest-app-demo/
 
-- Next / Back or the arrow keys, keys 1–4 jump to a use case.
-- N shows talking points for each screen, F is full screen, R restarts the screen.
-- Device selector: Phone + desktop, Phone, Tablet or Desktop.
+The home page gathers every guest app prototype: the guided sales demo, property link, check-in flows, identity verification, upselling, liveness, contact verification and guidebooks.
 
-To run it offline, download the repo and use `Start demo (Mac).command` or `Start demo (Windows).bat` (serves it on http://localhost:7900/).
+- `sales-demo/`: guided, clickable demo for the sales team (online check-in, payments and deposit, upselling, keys and guidebook). Next / Back or arrow keys, 1–4 jump to a use case, N for notes, F for full screen. To run it offline, use `Start demo (Mac).command` or `Start demo (Windows).bat` inside that folder.
+- `replica/`, `upselling/`, `liveness/`, `contact/`: the prototypes linked from the home page.
 
 All names, prices and bookings are sample data. Nothing is saved.
