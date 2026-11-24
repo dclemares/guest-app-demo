@@ -37,8 +37,8 @@ var postponed = function(){ try { var a = JSON.parse(localStorage.getItem('repli
 var setPostponed = function(a){ try { localStorage.setItem('replica-postponed', JSON.stringify(a)); } catch (e) {} window.dispatchEvent(new Event('replica-past-change')); };
 var plVer = function(){ return '1'; };   /* Pay later: se queda la V1 · lista (V2/V3 siguen en el código pero sin control) */   /* Componentes → Pay later: V1 lista · V2 resumen desplegable · V3 cronología */
 var hasPast = function(){ return LSget('replica-past-pay', '1') !== '0'; };   /* Ajustes de la reserva → Pagos existentes: ¿hay pagos ya hechos? (da acceso a «Order history») */
-var CARDS = [['1', 'T1 · Fila'], ['2', 'T2 · Fila pulida'], ['3', 'T3 · Pase'], ['4', 'T4 · Mosaico'], ['5', 'T5 · Pulida B'], ['6', 'T6 · Pulida C'], ['7', 'T7 · Wallet'], ['8', 'T8 · Papel']];   /* V7: diseño de la tarjeta de item */
-var tc = '6';   /* tarjeta de ítems definida: T6 · Pulida C (#853); el resto de variantes quedan en el código pero ya no se eligen */
+var CARDS = [['6', 'Actual · T6 (#753)'], ['6d', 'T6 · cifra discontinua (#637)'], ['6e', 'T6 · etiqueta de estado (#601)'], ['1', 'T1 · Fila'], ['2', 'T2 · Fila pulida'], ['3', 'T3 · Pase'], ['4', 'T4 · Mosaico'], ['5', 'T5 · Pulida B'], ['7', 'T7 · Wallet'], ['8', 'T8 · Papel'], ['r1', 'R1 · Chip de estado'], ['r2', 'R2 · Icono propio'], ['r3', 'R3 · Etiqueta sobre la cifra'], ['r4', 'R4 · Cifra con candado'], ['r5', 'R5 · Franja inferior'], ['r6', 'R6 · Mini línea de tiempo'], ['r1a', 'R1a · Chip corto junto al título'], ['r1b', 'R1b · Chip con icono'], ['r1c', 'R1c · Chip tras el subtítulo'], ['r6a', 'R6a · Hitos'], ['r6b', 'R6b · Barra con texto'], ['r6c', 'R6c · Iconos en los extremos'], ['r5a', 'R5a · Franja con fecha a la derecha'], ['r5b', 'R5b · Franja arriba'], ['r5c', 'R5c · Franja neutra con punto']];   /* #983: variantes de R1, R6 y R5 */   /* R1–R6 (#981): retención vs preautorización sobre T6, con un segundo depósito en preautorización */   /* #980: todas las versiones de la fila del depósito, para compararlas */
+var tc = (function(){ var v = ''; try { v = localStorage.getItem('replica-pay-card') || ''; } catch (e) {} return CARDS.some(function(x){ return x[0] === v; }) ? v : '6'; })();   /* tarjeta de ítems definida: T6 · Pulida C (#853); el resto de variantes quedan en el código pero ya no se eligen */
 /* Vela de pagos: la fija el componente elegido en Ajustes de la reserva → Componentes (uno solo): «Ask Vela chat» = '1b' (conversación con preguntas sugeridas) y «Ask Vela tradicional» = '0' (consejos, compartir y order history) */
 var isV3 = false;   /* el chat es el final (antes V5): respuestas completas */
 var isV2 = false;
@@ -94,7 +94,50 @@ var kebab7 = function(o){ return '<span class="pv7-kw"><button type="button" cla
   + '<span class="pv-mh" aria-hidden="true"><i></i><b>' + o.t + '</b><em>' + (o.amt || '') + '</em></span>' + o.menu.map(function(x){ return x[2] ? '<button type="button" data-pp="' + x[2] + '">' + x[1] + '</button>' : '<button type="button" data-go="' + x[0] + '">' + x[1] + '</button>'; }).join('') + '</div></span>'; };
 var feeTxt = function(o){ return o.fee ? '+ ' + money2(o.fee) + ' fee' : ''; };
 var amtParts = function(s){ var m = /^(.*),(\d\d)(\u20ac?)$/.exec(s); return m ? m[1] + '<small>,' + m[2] + '</small>' + (m[3] ? '<span class="eu">' + m[3] + '</span>' : '') : s; };   /* 12.00€ → 12 + .00 más pequeño + € */   /* €12.00 → €12 + .00 más pequeño */
+/* #981 · R1–R6: la tarjeta actual (T6) dice si el depósito es una retención o una preautorización */
+var rCard = function(o, v){
+  /* tres casos: hd = retención del depósito · pa = preautorización del depósito · up = extra de upselling con aprobación manual (retenido hasta confirmarlo) */
+  var K = o.k === 'xh' ? 'up' : (o.pa ? 'pa' : 'hd'), pa = K === 'pa', st = ' style="--i:' + (o.n || 0) + '"', cls = 'pv7-c p6 ' + (K === 'up' ? 'xh' : 'dep') + ' rx ' + v + (pa ? ' pa' : ' hd') + (K === 'up' ? ' up' : '');
+  var W = {
+    sub:   { hd: 'Held on your card', pa: 'Authorised only', up: o.s || 'Held until we confirm' },
+    chip:  { hd: 'On hold · released 4 Dec', pa: 'Card saved · nothing blocked', up: 'On hold · until confirmed' },
+    r2:    { hd: 'Held · not charged', pa: 'Authorised · nothing blocked', up: 'Held · until confirmed' },
+    tag:   { hd: 'Held', pa: 'Authorised', up: 'Held' },
+    band:  { hd: 'Blocked until 4 Dec · not a charge', pa: 'Charged only if damage is reported', up: 'Held until we confirm · charged only if approved' },
+    a1:    { hd: ['Released 4 Dec', 'On hold'], pa: ['Nothing blocked', 'Authorised'], up: ['Awaiting approval', 'On hold'] },
+    b1:    { hd: 'Held until 4 Dec', pa: 'Authorised, not blocked', up: 'Held until confirmed' },
+    c1:    { hd: ['Held on your card', '4 Dec'], pa: ['Authorised only', 'No block'], up: ['Held on your card', 'Pending'] },
+    ms:    { hd: ['Today', 'Check-out', 'Released 4 Dec'], pa: ['Today', 'Check-out', 'If damage'], up: ['Today', 'Approval', 'If approved'] },
+    bt:    { hd: 'Held from today until 4 Dec', pa: 'Card saved · charged only if damage is reported', up: 'Held until we confirm it' },
+    end:   { hd: 'Released 4 Dec', pa: 'Only if damage is reported', up: 'Charged if approved' },
+    b5a:   { hd: ['On hold · not a charge', 'Released 4 Dec'], pa: ['Card saved · nothing blocked', 'Only if damage'], up: ['On hold · not a charge yet', 'Until confirmed'] },
+    top:   { hd: 'On hold · released 4 Dec', pa: 'Authorised · nothing blocked', up: 'On hold · until confirmed' },
+    b5c:   { hd: 'Held, not charged. Released 4 Dec', pa: 'Authorised, not blocked. Charged only if damage is reported', up: 'Held, not charged. Charged only if approved, released if not' }
+  };
+  var L = function(n){ return ic(n); }, ico = pa ? 'card' : 'lock';
+  var sub = W.sub[K], fee = o.fee ? '<em class="p6fee">' + feeTxt(o) + '</em>' : '';
+  var icon = ic(o.icon), amt = '<span class="p6a">' + amtParts(o.amt) + '</span>', extra = '', below = '';
+  if (v === 'r1') below = '<em class="rx-chip">' + L(ico) + W.chip[K] + '</em>';
+  if (v === 'r2') { icon = L(ico); sub = W.r2[K]; }
+  if (v === 'r3') amt = '<span class="rx-tag">' + W.tag[K] + '</span>' + amt;
+  if (v === 'r4') amt = pa ? '<span class="p6a rx-upto"><small class="rx-up">up to</small>' + amtParts(o.amt) + '</span>' : '<span class="p6a rx-lock">' + L('lock') + '<span>' + amtParts(o.amt) + '</span></span>';
+  if (v === 'r5') extra = '<div class="rx-band">' + L(ico) + '<span>' + W.band[K] + '</span></div>';
+  /* #983 · variantes de R1 (chip a la derecha), R6 (mini línea) y R5 (franja) */
+  if (v === 'r1a') sub = W.a1[K][0] + '<em class="rx-chip rx-sm">' + W.a1[K][1] + '</em>';
+  if (v === 'r1b') { below = '<em class="rx-chip rx-ico">' + L(ico) + '</em>'; sub = W.b1[K]; }
+  if (v === 'r1c') sub = W.c1[K][0] + '<em class="rx-chip rx-sm">' + W.c1[K][1] + '</em>';
+  if (v === 'r6a') extra = '<div class="rx-ms"><div class="rx-msl"><i class="on"></i><i class="' + (pa ? 'dsh' : 'on') + '"></i></div><div class="rx-msd"><span><b></b>' + W.ms[K][0] + '</span><span><b></b>' + W.ms[K][1] + '</span><span><b class="end"></b>' + W.ms[K][2] + '</span></div></div>';
+  if (v === 'r6b') extra = '<div class="rx-bt">' + L(ico) + '<span>' + W.bt[K] + '</span></div>';
+  if (v === 'r6c') extra = '<div class="rx-ie"><span class="rx-ie-i">' + L(ico) + '</span><div class="rx-ie-b"><div class="rx-ie-l"></div><div class="rx-ie-t"><span>Today</span><span>' + W.end[K] + '</span></div></div><span class="rx-ie-i e">' + L(pa ? 'shield' : 'check') + '</span></div>';
+  if (v === 'r5a') extra = '<div class="rx-band rx-b2">' + L(ico) + '<span>' + W.b5a[K][0] + '</span><b>' + W.b5a[K][1] + '</b></div>';
+  if (v === 'r5b') cls += ' rx-top';
+  if (v === 'r5c') extra = '<div class="rx-band rx-b3"><i class="rx-dot"></i><span>' + W.b5c[K] + '</span></div>';
+  if (v === 'r6') extra = '<div class="rx-tl"><div class="rx-bar"><i></i></div><div class="rx-tll"><span>Today</span><span>' + W.end[K] + '</span></div></div>';
+  var topStrip = v === 'r5b' ? '<div class="rx-ts">' + L(ico) + '<span>' + W.top[K] + '</span></div>' : '';
+  return '<div class="' + cls + '"' + st + '>' + topStrip + '<div class="p6t"><span class="p6i">' + icon + '</span><span class="pv7-cx">' + (/^r1b?$/.test(v) ? '<span class="rx-hd"><b>' + o.t + '</b>' + below + '</span>' : '<b>' + o.t + '</b>') + '<span' + (v === 'r1c' || v === 'r1a' ? ' class="rx-subc"' : '') + '>' + sub + '</span>' + (/^r1b?$/.test(v) ? '' : below) + '</span><span class="p6r">' + amt + fee + '</span>' + kebab7(o) + '</div>' + extra + '</div>';
+};
 var itemCard = function(o, v){
+  if (/^r/.test(v)) { if (o.k === 'dep' || o.k === 'xh') return rCard(o, v); v = '6'; }
   var d = o.dash ? ' dash' : '', tile = '<span class="pv7-ri' + d + '">' + ic(o.icon) + '</span>', amt = '<span class="pv7-ca7' + d + '">' + o.amt + '</span>', st = ' style="--i:' + (o.n || 0) + '"';
   /* T2 · Fila pulida: la misma fila con más oficio (sombra suave, icono en degradado, céntimos pequeños, comisión en etiqueta, entrada escalonada) */
   if (v === '2') return '<div class="pv7-c p2 ' + o.k + '"' + st + '><span class="p2i">' + ic(o.icon) + '</span><span class="pv7-cx"><b>' + o.t + '</b><span>' + o.s + '</span></span>'
@@ -109,6 +152,10 @@ var itemCard = function(o, v){
   if (v === '5') return '<div class="pv7-c p5 ' + o.k + '"' + st + '><span class="p5i">' + ic(o.icon) + '</span><span class="pv7-cx"><b>' + o.t + '</b><span>' + o.s + '</span></span>'
     + '<span class="p5r"><span class="p5a' + d + '">' + amtParts(o.amt).replace('€', '<sup>€</sup>') + '</span>' + (o.fee ? '<span class="p5f">' + feeTxt(o) + '</span>' : '') + '</span>' + kebab7(o) + '</div>';
   /* T6 · Pulida C: filo de color arriba y, si hay comisión, franja inferior que la explica */
+  /* #980 · T6 con la cifra del depósito en discontinuo (como #637) o con etiqueta de estado (como #601) */
+  if ((v === '6d' || v === '6e') && o.k === 'dep') { var hl = /Held/.test(o.s), lab = (hl ? 'On hold' : 'Not charged') + (o.fee ? ' \u00b7 ' + money2(o.fee) + ' fee' : '');
+    return '<div class="pv7-c p6 ' + o.k + ' p6x"' + st + '><div class="p6t"><span class="p6i">' + ic(o.icon) + '</span><span class="pv7-cx"><b>' + o.t + '</b><span>' + o.s + '</span>' + (v === '6e' ? '<em class="p6st' + (hl ? ' hd' : '') + '">' + lab + '</em>' : '') + '</span><span class="p6r"><span class="p6a dash">' + amtParts(o.amt) + '</span>' + (o.fee && v === '6d' ? '<em class="p6fee">' + feeTxt(o) + '</em>' : '') + '</span>' + kebab7(o) + '</div></div>'; }
+  if (v === '6d' || v === '6e') v = '6';
   if (v === '6') return '<div class="pv7-c p6 ' + o.k + '"' + st + '><div class="p6t"><span class="p6i">' + ic(o.icon) + '</span><span class="pv7-cx"><b>' + o.t + '</b><span>' + o.s + '</span></span><span class="p6r"><span class="p6a">' + amtParts(o.amt) + '</span>' + (o.fee ? '<em class="p6fee">' + feeTxt(o) + '</em>' : '') + '</span>' + kebab7(o) + '</div></div>';   /* la comisión va bajo el importe, como en T2; el depósito se ve igual que las demás tarjetas (sin gris ni guiones) */
   /* T7 · Wallet: tarjeta de pago con degradado, brillo holográfico e inclinación 3D que sigue al puntero */
   if (v === '7') return '<div class="pv7-c p7 ' + o.k + d + '"' + st + '><span class="p7sh"></span><div class="p7t"><span class="p7i">' + ic(o.icon) + '</span><b>' + o.t + '</b>' + kebab7(o) + '</div>'
@@ -139,10 +186,22 @@ var payLater = function(late){
   }
   return '<div class="pl pl1" data-pl="1">' + head + '<div class="pv7-list">' + late.map(function(o){ return itemCard(o, tc); }).join('') + '</div></div>';   /* V1 · lista */
 };
+/* Upselling v3 (versiones «Vlad feedback», d=…f1–f4): los extras del huésped entran en el carrito.
+   Los automáticos se cobran con el resto; los que necesitan aprobación se retienen aparte y solo se cobran si se confirman. Lee ux-state / ux-deals (sessionStorage, los escribe ux.js). */
+var uxExtras = function(){ var E = { charge: [], hold: [], cSum: 0, hSum: 0 };
+  try { var G = function(k){ return sessionStorage.getItem(k) || localStorage.getItem(k); };   /* todas las versiones de upselling v3; si la pestaña es nueva, lo último guardado */
+    var S = JSON.parse(G('ux-state') || 'null'), C = JSON.parse(G('ux-deals') || '{}') || {}; if (!S) return E;
+    (S.cart || []).forEach(function(x){ E.charge.push({ id: x.id, t: x.n || (C[x.id] || {}).t || x.id, s: x.sub || '', val: x.amt || 0, img: (C[x.id] || {}).img }); });
+    Object.keys(S.req || {}).forEach(function(k){ var r = S.req[k]; if (r.st === 'queued') E.hold.push({ id: k, t: (C[k] || {}).t || k, s: r.sub || '', val: r.amt || 0, img: (C[k] || {}).img }); });
+  } catch (e) {}
+  E.cSum = E.charge.reduce(function(a, x){ return a + x.val; }, 0); E.hSum = E.hold.reduce(function(a, x){ return a + x.val; }, 0); return E; };
 var v7 = function(){
   var P = pays(), hold = LSget('replica-deposit-type', 'hold') !== 'token';
-  var tax = P.indexOf('taxes') > -1, dep = P.indexOf('deposit') > -1, res = P.indexOf('reservation') > -1;
-  if (!tax && !dep && !res) {
+  var tax = P.indexOf('taxes') > -1, dep = P.indexOf('deposit') > -1, two = dep && /^r/.test(tc), A2 = 150;   /* #981: en R1–R6, retención de 230 € + un segundo depósito en preautorización de 150 € */
+  if (two) hold = true;
+  var res = P.indexOf('reservation') > -1, UX = uxExtras(), xh = UX.hSum;
+  if (two && !UX.hold.length) { UX.hold.push({ id: 'demo-early', t: 'Early check-in', s: 'Needs approval', val: 20 }); UX.hSum = 20; xh = 20; }   /* #984: en R1–R6 se ve también un extra de upselling con aprobación manual (retenido hasta confirmarlo) */
+  if (!tax && !dep && !res && !UX.charge.length && !UX.hold.length) {
     if (!hasPast()) return emptyView();
     return { cls: 'pv7', html: '<div class="pv7-wrap"><div class="pv7-rcs">' + receiptsHtml(pastOrders()) + '</div></div>', label: '', sub: 'Below you\u2019ll find the payments you\u2019ve already made. There\u2019s nothing to pay for this stay. Go enjoy the rest of the trip planning.', pageTitle: 'One less thing to <span class="text-[var(--chekin-color-brand-blue)]">think about</span>' };
   }
@@ -150,11 +209,14 @@ var v7 = function(){
   var T = TX.t, R = 12, PPL = postponed(), taxP = tax && PPL.indexOf('taxes') > -1, resP = res && PPL.indexOf('reservation') > -1;
   tax = tax && !taxP; res = res && !resP;   /* lo pospuesto sale del total y va a «Pay later» */
   var fees = LSget('replica-ext-fees', '1') !== '0';   /* Controles → Ajustes de la reserva → Comisiones externas (valores de demo) */
-  var FT = fees && tax ? 0.5 : 0, FR = fees && res ? 0.5 : 0, FD = fees && dep ? D.fee : 0;
+  var FT = fees && tax ? 0.5 : 0, FR = fees && res ? 0.5 : 0, FD = fees && dep ? D.fee : 0, FD2 = fees && two ? 2.55 : 0;   /* 1,5 % + 0,30 € */
   var FTp = fees && taxP ? 0.5 : 0, FRp = fees && resP ? 0.5 : 0;
-  var now = (tax ? T : 0) + (res ? R : 0) + FT + FR + FD;
-  var payLbl = (now === 0 && !dep) ? 'Nothing to pay now' : (now === 0 ? (hold ? 'Hold ' : 'Authorise ') + money2(D.auth) : 'Pay ' + money2(now) + (dep ? (hold ? ' and hold' : ' and authorise') : ''));   /* el botón dice qué pasa con el depósito según Controles → Tipo de depósito */
-  var noteTxt = hold
+  var now = (tax ? T : 0) + (res ? R : 0) + FT + FR + FD + FD2 + UX.cSum;
+  var payLbl = (now === 0 && !dep && !xh) ? 'Nothing to pay now' : (now === 0 ? (dep ? (hold ? 'Hold ' : 'Authorise ') + money2(D.auth + (hold ? xh : 0)) : 'Hold ' + money2(xh)) : 'Pay ' + money2(now) + (dep ? (hold ? ' and hold' : ' and authorise') : xh ? ' and hold' : ''));   /* el botón dice qué pasa con el depósito según Controles → Tipo de depósito */
+  if (two) payLbl = 'Pay ' + money2(now) + ', hold and authorise';   /* #981 */
+  var noteTxt = two
+    ? '<b>In this transaction, ' + money2(D.auth) + ' will be held on your card and ' + money2(A2) + ' authorised.</b> Neither is charged: the hold is released after your stay, and both may be charged if the property\u2019s rules or conditions are not respected.'
+    : hold
     ? '<b>In this transaction, ' + money2(D.auth) + ' will be held on your card.</b> It will be released after your stay, and may be charged if the property\u2019s rules or conditions are not respected.'
     : '<b>In this transaction, ' + money2(D.auth) + ' will be authorised, not charged.</b> It may be charged if the property\u2019s rules or conditions are not respected.';
   var noteBox = noteTxt.replace('<b>In this transaction, ', 'In this transaction, <b>');   /* «In this transaction,» normal; el resto de la frase, en negrita */
@@ -163,11 +225,15 @@ var v7 = function(){
     + '<div class="pv7-now"><span>To pay now</span><b>' + money2(now) + '</b></div>'
     + '<button type="button" class="pv7-pay" data-act="main">' + payLbl + '</button>'
     + '<p class="pv7-sec">' + ic('lock') + '<span>' + secure + '</span></p>'
-    + (dep ? '<div class="pv7-share"><p>' + noteBox + '</p></div>' : '') + '</section>';
+    + (dep ? '<div class="pv7-share"><p>' + noteBox + '</p></div>' : '')
+    + (xh ? '<div class="pv7-share"><p>In this transaction, <b>' + money2(xh) + ' will be held on your card for ' + (UX.hold.length > 1 ? 'your requests' : UX.hold[0].t) + '.</b> It\u2019s only charged once we confirm' + (UX.hold.length > 1 ? ' each one' : '') + ', and released if we can\u2019t.</p></div>' : '') + '</section>';
   var items = [];
   if (tax) items.push({ k: 'tax', val: T, n: 0, icon: 'coins', t: 'Tourist taxes', s: TX.s, amt: money2(T), fee: FT, menu: [['cart-exemptions', 'Edit and see how it works'], ['', 'Postpone payment', 'pp:taxes']] });
   if (res) items.push({ k: 'res', val: R, n: 1, icon: 'card', t: 'Reservation payment', s: 'Due before check-in', amt: money2(R), fee: FR, menu: [['', 'Postpone payment', 'pp:reservation']] });
+  UX.charge.forEach(function(x){ items.push({ k: 'xtr', val: x.val, n: items.length, icon: 'spark', t: x.t, s: x.s || 'Extra for your stay', amt: money2(x.val), fee: 0, menu: [['ux-mine', 'See it in My extras']] }); });
+  UX.hold.forEach(function(x){ items.push({ k: 'xh', val: x.val, n: items.length, icon: 'spark', dash: true, t: x.t, s: (x.s ? x.s + ' \u00b7 ' : '') + 'held until we confirm', amt: money2(x.val), fee: 0, menu: [['ux-mine', 'See it in My extras']] }); });
   if (dep) items.push({ k: 'dep', val: D.auth, n: 2, icon: 'shield', dash: true, t: 'Security deposit', s: hold ? 'Held on your card' : 'Authorised only', amt: money2(D.auth), fee: FD, menu: [['pay-1-protection', 'Edit and see how it works']] });
+  if (two) items.push({ k: 'dep', pa: true, val: A2, n: 3, icon: 'shield', dash: true, t: 'Security deposit', s: 'Authorised only', amt: money2(A2), fee: FD2, menu: [['pay-1-protection', 'Edit and see how it works']] });
   var cards = items.map(function(o){ return itemCard(o, tc); }).join('');
   var late = [];
   if (taxP) late.push({ k: 'tax', val: T, n: 0, icon: 'coins', t: 'Tourist taxes', s: TX.s, amt: money2(T), fee: FTp, due: 'Due before check-out', menu: [['', 'Pay now', 'pn:taxes'], ['cart-exemptions', 'Edit and see how it works']] });
@@ -175,7 +241,8 @@ var v7 = function(){
   var lateHtml = late.length ? payLater(late) : '';
   /* el pedido que verá el flujo de pago (checkout.js), solo para leer importes: pagar no cambia nada fuera de esa pantalla */
   LSset('replica-order', JSON.stringify({ now: now, hold: hold, dep: dep, auth: D.auth, depFee: FD, rel: parseInt(LSget('replica-dep-release', '7'), 10) || 7,
-    items: items.filter(function(o){ return o.k !== 'dep'; }).map(function(o){ return { k: o.k, t: o.t, s: String(o.s).replace(/<[^>]+>/g, ''), val: o.val, fee: o.fee }; }),
+    xh: xh, xhl: UX.hold.map(function(x){ return { t: x.t, s: x.s, val: x.val }; }),
+    items: items.filter(function(o){ return o.k !== 'dep' && o.k !== 'xh'; }).map(function(o){ return { k: o.k, t: o.t, s: String(o.s).replace(/<[^>]+>/g, ''), val: o.val, fee: o.fee }; }),
     late: late.map(function(o){ return { k: o.k, t: o.t, val: o.val, fee: o.fee, due: o.due }; }) }));
   return { cls: 'pv7', html: '<div class="pv7-wrap">' + hero + (!cards ? (hasPast() ? '<div class="pv7-lblrow pv7-lblrow-e"><span></span><button type="button" class="pv7-lnk" data-go="order-history">Order history ' + ic('right') + '</button></div>' : '') : (hasPast() ? '<div class="pv7-lblrow"><h3 class="pv7-lbl">In your order</h3><button type="button" class="pv7-lnk" data-go="order-history">Order history ' + ic('right') + '</button></div>' : '<h3 class="pv7-lbl">In your order</h3>') + '<div class="pv7-list">' + cards + '</div>') + lateHtml
       + '</div>', label: payLbl, sub: 'Review your order and pay securely.', vela: true };
@@ -500,7 +567,7 @@ osc.addEventListener('click', function(e){
 var addFee = function(){ if (window.__repPanel) window.__repPanel.add('Comisiones externas', ef, 2.6); };
 /* «Pagos existentes» es un control de la página (order ≥ 10), no un ajuste de la reserva */
 var addPast = function(){ if (window.__repPanel) window.__repPanel.add('Pagos existentes', pe, 25); };
-var addCtl = function(){ if (isCart && window.__repPanel) { window.__repPanel.add('Pagos pospuestos', ppc, 24); window.__repPanel.add('Order summary', osc, 26); } };
+var addCtl = function(){ if (isCart && window.__repPanel) { window.__repPanel.add('Fila del depósito', tcc, 22); window.__repPanel.add('Pagos pospuestos', ppc, 24); window.__repPanel.add('Order summary', osc, 26); } };
 
 /* ---------- Página «Order history»: recibos de papel (T8). La pantalla `order-history` de la réplica era una captura de «Edit tourist taxes»; aquí se sustituye su contenido ---------- */
 var isHist = S.id === 'order-history';
@@ -518,7 +585,7 @@ var receiptsHtml = function(orders){
   var hold = LSget('replica-deposit-type', 'hold') !== 'token';
   return '<div class="tk-wrap">' + orders.map(function(o){
     var sum = o.lines.reduce(function(s, l){ return s + l[2]; }, 0) + o.fee, st = o.st === 'ON HOLD' ? 'HELD' : o.st;
-    var note = o.dep ? (hold ? 'Your bank shows it as pending. Released on ' + releaseDate() + '.' : o.note) : '';
+    var note = o.xh ? o.note : o.dep ? (hold ? 'Your bank shows it as pending. Released on ' + releaseDate() + '.' : o.note) : '';
     return '<article class="tk ' + (o.fresh && !window.__freshDone ? '' : 'tk-still ') + (o.dep ? 'tk-hold' : 'tk-paid') + '" aria-label="Order ' + o.no + '"><header><b>Villa Calipso</b><span class="tk-no">Order ' + o.no + '</span><small>' + (o.dep ? (hold ? 'Hold receipt' : 'Authorisation receipt') : 'Payment receipt') + ' · ' + o.date + '</small></header>'
       + '<ul class="tk-l">' + o.lines.map(function(l){ return '<li><span>' + l[0] + '<small>' + l[1] + '</small></span><i aria-hidden="true"></i><em>' + es2(l[2]) + '</em></li>'; }).join('') + (o.fee ? '<li><span>' + o.feeLbl + '</span><i aria-hidden="true"></i><em>' + es2(o.fee) + '</em></li>' : '') + '</ul>'
       + '<div class="tk-t"><span>' + o.total + '</span><b>' + money2(sum) + '</b></div>'
@@ -536,8 +603,10 @@ var freshOrders = function(){
   var lines = items.map(function(i){ return [i.t, i.s, i.val]; }), fee = items.reduce(function(a, i){ return a + (i.fee || 0); }, 0);
   if (O.dep && O.depFee) lines.push(['Deposit service fee', 'for the ' + money2(O.auth) + (hold ? ' hold' : ' authorisation'), O.depFee]);
   var out = [];
-  if (O.dep) out.push({ no: lines.length ? '#1046' : '#1045', date: date, dep: true, lines: [['Security deposit', hold ? 'held on your card' : 'authorised, not charged', O.auth, true]], fee: 0, total: hold ? 'Total held' : 'Total authorised', st: hold ? 'ON HOLD' : 'AUTHORISED', note: hold ? 'Released after your stay.' : 'Charged only if the property reports a breach of its rules.', fresh: true });
-  if (lines.length) out.push({ no: '#1045', date: date, lines: lines, fee: fee, feeLbl: 'Service fee', total: 'Total paid', st: 'PAID', fresh: true });
+  var nos = []; if (lines.length) nos.push('pay'); if (!dep && O.xh > 0) nos.push('xh'); if (O.dep) nos.push('dep'); var NO = function(k){ return '#' + (1045 + nos.indexOf(k)); };
+  if (!dep && O.xh > 0) out.push({ no: NO('xh'), date: date, dep: true, lines: (O.xhl || []).map(function(x){ return [x.t, (x.s ? x.s + ' \u00b7 ' : '') + 'held until we confirm', x.val, true]; }), fee: 0, total: 'Total held', st: 'ON HOLD', xh: true, note: 'Your bank shows it as pending. Charged only once we confirm, released if we can\u2019t.', fresh: true });
+  if (O.dep) out.push({ no: NO('dep'), date: date, dep: true, lines: [['Security deposit', hold ? 'held on your card' : 'authorised, not charged', O.auth, true]], fee: 0, total: hold ? 'Total held' : 'Total authorised', st: hold ? 'ON HOLD' : 'AUTHORISED', note: hold ? 'Released after your stay.' : 'Charged only if the property reports a breach of its rules.', fresh: true });
+  if (lines.length) out.push({ no: NO('pay'), date: date, lines: lines, fee: fee, feeLbl: 'Service fee', total: 'Total paid', st: 'PAID', fresh: true });
   return out;
 };
 var histDock = function(){   /* desde Payments: «Go to home» y, debajo, qué falta por pagar, cuánto y cuándo vence */
